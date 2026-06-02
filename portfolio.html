@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Portfolio">
+<meta name="theme-color" content="#000000">
+<title>Portfolio</title>
+<style>
+  :root {
+    --green: #30D158; --red: #FF453A; --blue: #0A84FF;
+    --bg: #000; --bg2: #1C1C1E; --bg3: #2C2C2E;
+    --t1: #F5F5F7; --t2: #8E8E93; --t3: #48484A;
+    --border: rgba(255,255,255,0.08);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bot: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { background: var(--bg); color: var(--t1); font-family: -apple-system, "SF Pro Display", "Helvetica Neue", sans-serif; overscroll-behavior: none; }
+
+  /* Layout */
+  #app { display: flex; flex-direction: column; height: 100dvh; }
+  #header { flex-shrink: 0; padding: calc(var(--safe-top) + 20px) 32px 0; background: var(--bg); }
+  #tab-bar { flex-shrink: 0; display: flex; gap: 4px; padding: 12px 24px; border-bottom: 1px solid var(--border); background: var(--bg); }
+  #tab-sub { flex-shrink: 0; display: grid; grid-template-columns: repeat(4,1fr); border-bottom: 1px solid var(--border); background: var(--bg); }
+  #col-head { flex-shrink: 0; display: grid; grid-template-columns: 1fr 110px 110px 80px 60px; padding: 8px 32px; border-bottom: 1px solid var(--border); background: var(--bg); }
+  #list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: calc(var(--safe-bot) + 16px); }
+
+  /* Typography */
+  .label { font-size: 11px; color: var(--t2); letter-spacing: 0.05em; text-transform: uppercase; }
+  .val-lg { font-size: 42px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+  .val-md { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+  .val-sm { font-size: 15px; font-weight: 600; }
+  .sub    { font-size: 13px; color: var(--t2); margin-top: 3px; }
+
+  /* Progress */
+  .prog-track { height: 5px; border-radius: 3px; background: rgba(255,255,255,0.1); overflow: hidden; margin: 6px 0; }
+  .prog-fill  { height: 100%; border-radius: 3px; background: linear-gradient(90deg,#0A84FF,#32ADE6); transition: width 1s cubic-bezier(.4,0,.2,1); }
+
+  /* Cards */
+  .card-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin: 18px 0; }
+  .card { background: rgba(255,255,255,0.06); border-radius: 16px; padding: 16px 18px; }
+  .card .label { margin-bottom: 6px; }
+
+  /* Tabs */
+  .tab { background: none; border: none; color: var(--t2); font-family: inherit; font-size: 15px; font-weight: 500; padding: 8px 22px; border-radius: 20px; cursor: pointer; transition: all .2s; }
+  .tab.active { background: rgba(255,255,255,0.1); color: var(--t1); }
+  .tab-sub-cell { padding: 12px 16px; background: var(--bg); }
+  .tab-sub-cell .label { margin-bottom: 4px; }
+
+  /* Rows */
+  .row { display: grid; grid-template-columns: 1fr 110px 110px 80px 60px; align-items: center; padding: 15px 32px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: default; transition: background .15s; }
+  .row:hover { background: rgba(255,255,255,0.03); }
+  .ticker { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+  .rname  { font-size: 12px; color: var(--t2); margin-top: 2px; }
+  .src-badge { font-size: 10px; color: var(--t2); background: rgba(255,255,255,0.07); padding: 2px 7px; border-radius: 5px; margin-left: 6px; }
+  .bar-track { width: 52px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.08); overflow: hidden; margin-top: 5px; margin-left: auto; }
+  .bar-fill  { height: 100%; border-radius: 2px; }
+
+  /* Refresh btn */
+  #refresh-btn { background: rgba(255,255,255,0.08); border: none; color: var(--blue); font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 18px; border-radius: 20px; cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: 6px; }
+  #refresh-btn:active { opacity: .7; transform: scale(.97); }
+  .spin { display: inline-block; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Fade-in rows */
+  @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+  .row-anim { opacity: 0; animation: fadeUp .35s ease forwards; }
+
+  /* Loading overlay */
+  #loading-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(12px); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 16px; z-index: 100;
+    transition: opacity .4s;
+  }
+  #loading-overlay.hidden { opacity: 0; pointer-events: none; }
+  .loader-ring { width: 48px; height: 48px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--blue); border-radius: 50%; animation: spin .8s linear infinite; }
+  #loading-text { font-size: 14px; color: var(--t2); }
+
+  .green { color: var(--green); }
+  .red   { color: var(--red);   }
+  .blue  { color: var(--blue);  }
+  .t2    { color: var(--t2);    }
+
+  /* iPad two-column layout */
+  @media (min-width: 768px) {
+    #header { padding-left: 40px; padding-right: 40px; }
+    #tab-bar { padding-left: 32px; }
+    #col-head { padding-left: 40px; padding-right: 40px; grid-template-columns: 1fr 130px 130px 90px 70px; }
+    .row { padding-left: 40px; padding-right: 40px; grid-template-columns: 1fr 130px 130px 90px 70px; }
+    .val-lg { font-size: 52px; }
+    .card-grid { gap: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <div class="loader-ring"></div>
+  <div id="loading-text">Fetching live prices…</div>
+</div>
+
+<div id="app">
+
+  <!-- HEADER -->
+  <div id="header">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+      <div>
+        <div class="label" style="margin-bottom:6px;">TOTAL PORTFOLIO</div>
+        <div class="val-lg" id="hdr-total">—</div>
+        <div class="sub" id="hdr-sgd">—</div>
+      </div>
+      <div style="text-align:right;padding-top:6px;">
+        <div class="val-md" id="hdr-pct">—</div>
+        <div class="sub" id="hdr-pnl">—</div>
+      </div>
+    </div>
+
+    <!-- House progress -->
+    <div style="margin-top:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+        <span class="label">House Fund · S$400,000</span>
+        <span id="prog-pct" class="label" style="color:var(--blue);">0%</span>
+      </div>
+      <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+      <div class="sub" id="prog-remain" style="margin-top:4px;">—</div>
+    </div>
+
+    <!-- Cards -->
+    <div class="card-grid">
+      <div class="card">
+        <div class="label">Tiger Brokers</div>
+        <div class="val-sm green" id="card-tiger-val">S$115,391</div>
+        <div class="sub" id="card-tiger-sub">+26.9% · S$1,730/day</div>
+      </div>
+      <div class="card">
+        <div class="label">Trading 212 ISA</div>
+        <div class="val-sm green" id="card-isa-val">£73,397</div>
+        <div class="sub" id="card-isa-sub">+22.3%</div>
+      </div>
+      <div class="card">
+        <div class="label">Total P&amp;L</div>
+        <div class="val-sm green" id="card-pnl-val">—</div>
+        <div class="sub" id="card-pnl-sub">—</div>
+      </div>
+    </div>
+
+    <!-- Refresh row -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div class="sub" id="updated-label">Prices from snapshot</div>
+      <button id="refresh-btn" onclick="fetchPrices()">
+        <span id="refresh-icon">↻</span> <span id="refresh-label">Refresh</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div id="tab-bar">
+    <button class="tab active" onclick="setTab('total')" id="tab-total">Total</button>
+    <button class="tab" onclick="setTab('tiger')" id="tab-tiger">Tiger</button>
+    <button class="tab" onclick="setTab('t212')" id="tab-t212">ISA</button>
+    <div style="margin-left:auto;display:flex;align-items:center;">
+      <span class="label" id="pos-count">25 positions</span>
+    </div>
+  </div>
+
+  <!-- TAB SUB-STATS -->
+  <div id="tab-sub">
+    <div class="tab-sub-cell"><div class="label">Value</div><div id="ts-val" style="font-size:14px;font-weight:600;margin-top:3px;">—</div></div>
+    <div class="tab-sub-cell"><div class="label">Cost</div><div id="ts-cost" style="font-size:14px;font-weight:600;margin-top:3px;">—</div></div>
+    <div class="tab-sub-cell"><div class="label">P&amp;L</div><div id="ts-pnl" style="font-size:14px;font-weight:600;margin-top:3px;">—</div></div>
+    <div class="tab-sub-cell"><div class="label">Return</div><div id="ts-ret" style="font-size:14px;font-weight:600;margin-top:3px;">—</div></div>
+  </div>
+
+  <!-- COLUMN HEADERS -->
+  <div id="col-head">
+    <div class="label">Position</div>
+    <div class="label" style="text-align:right;">Value (SGD)</div>
+    <div class="label" style="text-align:right;">P&amp;L</div>
+    <div class="label" style="text-align:right;">Weight</div>
+    <div class="label" style="text-align:right;">Qty</div>
+  </div>
+
+  <!-- HOLDINGS LIST -->
+  <div id="list"></div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────
+const TIGER = [
+  {t:"AAPL", n:"Apple",             s:9.00567,  c:197.35},
+  {t:"ASTS", n:"AST SpaceMobile",   s:121,      c:95.03 },
+  {t:"BB",   n:"BlackBerry",        s:35,       c:9.63  },
+  {t:"DRAM", n:"Roundhill Memory",  s:15,       c:54.26 },
+  {t:"GOOG", n:"Alphabet",          s:17.00812, c:292.47},
+  {t:"HOVR", n:"New Horizon Air",   s:310,      c:3.09  },
+  {t:"MU",   n:"Micron Technology", s:2,        c:765.00},
+  {t:"NASA", n:"Tema Space Inn.",   s:16,       c:37.99 },
+  {t:"NOK",  n:"Nokia",             s:210,      c:15.26 },
+  {t:"NOW",  n:"ServiceNow",        s:17,       c:99.78 },
+  {t:"PL",   n:"Planet Labs",       s:8,        c:38.50 },
+  {t:"RKLB", n:"Rocket Lab",        s:84,       c:75.39 },
+  {t:"TSM",  n:"TSMC",              s:8.72396,  c:235.72},
+  {t:"UFO",  n:"Procure Space ETF", s:40,       c:61.97 },
+  {t:"VOO",  n:"Vanguard S&P 500",  s:56.11771, c:588.58},
+];
+
+const T212 = [
+  {t:"VUAG", n:"Vanguard S&P500 Acc",  s:414.67027763, cG:103.07, vG:45199.06},
+  {t:"GOOG", n:"Alphabet Class C",     s:30.73385538,  cG:209.06, vG:8192.01 },
+  {t:"ASTS", n:"AST SpaceMobile",      s:76.88961673,  cG:57.36,  vG:6702.01 },
+  {t:"NVDA", n:"Nvidia",               s:30.8724594,   cG:109.03, vG:5101.45 },
+  {t:"NOW",  n:"ServiceNow",           s:33.24974019,  cG:72.51,  vG:3179.04 },
+  {t:"NOK",  n:"Nokia",                s:131.8,        cG:11.55,  vG:1649.42 },
+  {t:"FLRK", n:"Franklin FTSE Korea",  s:14.85697145,  cG:77.72,  vG:1303.25 },
+  {t:"MU",   n:"Micron Technology",    s:1.61208565,   cG:552.63, vG:1277.78 },
+  {t:"BB",   n:"BlackBerry",           s:63.48261974,  cG:6.38,   vG:507.96  },
+  {t:"RKLB", n:"Rocket Lab",           s:3.1,          cG:105.74, vG:284.75  },
+];
+
+const SNAP = {AAPL:315.01,ASTS:117.45,BB:10.80,DRAM:69.88,GOOG:359.10,HOVR:2.58,MU:1068.16,NASA:38.02,NOK:16.89,NOW:128.71,PL:48.35,RKLB:123.74,TSM:447.41,UFO:61.54,VOO:698.56};
+
+const USD_GBP = 0.785, GBP_SGD = 1.72, USD_SGD = USD_GBP * GBP_SGD;
+const TIGER_TOTAL_SGD = 115390.99, TIGER_PNL_SGD = 24464.23, TIGER_DAILY_SGD = 1730.38;
+const TIGER_COST_SGD = TIGER_TOTAL_SGD - TIGER_PNL_SGD;
+const TIGER_PNL_PCT = (TIGER_PNL_SGD / TIGER_COST_SGD) * 100;
+const T212_TOTAL_GBP = 73396.73, T212_COST_GBP = 60022.62;
+const HOUSE = 400000;
+
+let prices = {...SNAP};
+let currentTab = 'total';
+
+// ── FORMATTING ────────────────────────────────────────────────────────────
+const fmtSGD = (n,d=0) => `S$${Math.abs(n).toLocaleString('en',{minimumFractionDigits:d,maximumFractionDigits:d})}`;
+const fmtGBP = (n,d=0) => `£${Math.abs(n).toLocaleString('en',{minimumFractionDigits:d,maximumFractionDigits:d})}`;
+const fmtPct = (n,d=2) => `${n>=0?'+':'−'}${Math.abs(n).toFixed(d)}%`;
+const colr   = v => v>0?'var(--green)':v<0?'var(--red)':'var(--t2)';
+const sign   = v => v>=0?'+':'−';
+
+// ── CALC ─────────────────────────────────────────────────────────────────
+function calcTiger() {
+  return TIGER.map(h => {
+    const p = prices[h.t] ?? h.c;
+    const vU = h.s * p, cU = h.s * h.c, pnlU = vU - cU;
+    const pct = pnlU / cU * 100;
+    return {...h, p, vU, cU, pnlU, pct, vG: vU*USD_GBP, cG: cU*USD_GBP, vS: vU*USD_SGD, pnlG: pnlU*USD_GBP};
+  });
+}
+
+function calcT212() {
+  return T212.map(h => {
+    const cG = h.cG * h.s, vG = h.vG, pnlG = vG - cG, pct = pnlG/cG*100;
+    return {...h, cG, vG, pnlG, pct, vS: vG*GBP_SGD};
+  });
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────
+function render() {
+  const tiger = calcTiger();
+  const t212  = calcT212();
+
+  // Use Tiger actuals (more accurate than our USD calc)
+  const tigerTotalGBP = TIGER_TOTAL_SGD / GBP_SGD;
+  const tigerCostGBP  = TIGER_COST_SGD  / GBP_SGD;
+  const tigerPnlGBP   = TIGER_PNL_SGD   / GBP_SGD;
+
+  const t212TotalGBP = T212_TOTAL_GBP, t212CostGBP = T212_COST_GBP;
+  const t212PnlGBP   = t212TotalGBP - t212CostGBP;
+  const t212Pct      = t212PnlGBP / t212CostGBP * 100;
+
+  const totalGBP     = tigerTotalGBP + t212TotalGBP;
+  const totalCostGBP = tigerCostGBP  + t212CostGBP;
+  const totalPnlGBP  = totalGBP - totalCostGBP;
+  const totalPct     = totalPnlGBP / totalCostGBP * 100;
+  const totalSGD     = TIGER_TOTAL_SGD + t212TotalGBP * GBP_SGD;
+  const totalPnlSGD  = TIGER_PNL_SGD + t212PnlGBP * GBP_SGD;
+  const progress     = Math.min(totalSGD / HOUSE * 100, 100);
+
+  // Header
+  el('hdr-total').textContent = fmtGBP(totalGBP);
+  el('hdr-sgd').textContent   = fmtSGD(totalSGD);
+  el('hdr-pct').textContent   = fmtPct(totalPct);
+  el('hdr-pct').style.color   = colr(totalPct);
+  el('hdr-pnl').textContent   = `${sign(totalPnlGBP)}${fmtGBP(Math.abs(totalPnlGBP))} P&L`;
+  el('hdr-pnl').style.color   = colr(totalPnlGBP);
+
+  // Progress
+  el('prog-fill').style.width   = `${progress}%`;
+  el('prog-pct').textContent    = `${progress.toFixed(1)}%`;
+  el('prog-pct').style.color    = progress >= 100 ? 'var(--green)' : 'var(--blue)';
+  const remain = Math.max(HOUSE - totalSGD, 0);
+  el('prog-remain').textContent = `${fmtSGD(remain)} remaining`;
+
+  // Cards
+  el('card-tiger-val').textContent = fmtSGD(TIGER_TOTAL_SGD);
+  el('card-tiger-sub').textContent = `+${TIGER_PNL_PCT.toFixed(1)}% · ${fmtSGD(TIGER_DAILY_SGD)}/day`;
+  el('card-isa-val').textContent   = fmtGBP(t212TotalGBP);
+  el('card-isa-sub').textContent   = `${fmtPct(t212Pct,1)} return`;
+  el('card-isa-val').style.color   = colr(t212Pct);
+  el('card-pnl-val').textContent   = `${sign(totalPnlSGD)}${fmtSGD(Math.abs(totalPnlSGD))}`;
+  el('card-pnl-val').style.color   = colr(totalPnlSGD);
+  el('card-pnl-sub').textContent   = `${fmtPct(totalPct,1)} overall`;
+
+  // Tab stats
+  let tv, tc, tp, tpct, rows;
+  if (currentTab === 'tiger') {
+    tv = tigerTotalGBP * GBP_SGD; tc = tigerCostGBP * GBP_SGD;
+    tp = TIGER_PNL_SGD; tpct = TIGER_PNL_PCT;
+    rows = tiger.map(h=>({...h, src:'Tiger'})).sort((a,b)=>b.vS-a.vS);
+  } else if (currentTab === 't212') {
+    tv = t212TotalGBP * GBP_SGD; tc = t212CostGBP * GBP_SGD;
+    tp = t212PnlGBP * GBP_SGD; tpct = t212Pct;
+    rows = t212.map(h=>({...h, src:'ISA'})).sort((a,b)=>b.vS-a.vS);
+  } else {
+    tv = totalSGD; tc = totalCostGBP * GBP_SGD;
+    tp = totalPnlSGD; tpct = totalPct;
+    rows = [
+      ...tiger.map(h=>({...h, src:'Tiger'})),
+      ...t212.map(h=>({...h, src:'ISA', vU:undefined}))
+    ].sort((a,b)=>b.vS-a.vS);
+  }
+
+  el('ts-val').textContent  = fmtSGD(tv);
+  el('ts-cost').textContent = fmtSGD(tc);
+  el('ts-pnl').textContent  = `${sign(tp)}${fmtSGD(Math.abs(tp))}`;
+  el('ts-pnl').style.color  = colr(tp);
+  el('ts-ret').textContent  = fmtPct(tpct);
+  el('ts-ret').style.color  = colr(tpct);
+  el('pos-count').textContent = `${rows.length} positions`;
+
+  // Rows
+  const list = el('list');
+  list.innerHTML = '';
+  rows.forEach((h, i) => {
+    const vS   = h.vS ?? 0;
+    const pnlS = (h.pnlG != null ? h.pnlG : (h.pnlU??0)*USD_GBP) * GBP_SGD;
+    const wt   = (vS / tv * 100).toFixed(1);
+    const barW = Math.min(Math.abs(h.pct) / 60 * 100, 100);
+
+    const row = document.createElement('div');
+    row.className = 'row row-anim';
+    row.style.animationDelay = `${i * 0.03}s`;
+    row.innerHTML = `
+      <div>
+        <div style="display:flex;align-items:center;">
+          <span class="ticker">${h.t}</span>
+          ${currentTab==='total'?`<span class="src-badge">${h.src}</span>`:''}
+        </div>
+        <div class="rname">${h.n}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:14px;font-weight:600;">${fmtSGD(vS)}</div>
+        <div style="font-size:11px;color:var(--t2);">${fmtGBP(vS/GBP_SGD)}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:14px;font-weight:600;color:${colr(h.pct)};">${fmtPct(h.pct)}</div>
+        <div style="font-size:11px;color:${colr(pnlS)};">${sign(pnlS)}${fmtSGD(Math.abs(pnlS))}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:13px;color:var(--t2);">${wt}%</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${barW}%;background:${h.pct>=0?'var(--green)':'var(--red)'}"></div></div>
+      </div>
+      <div style="text-align:right;font-size:12px;color:var(--t2);">${h.s.toLocaleString('en',{maximumFractionDigits:3})}</div>
+    `;
+    list.appendChild(row);
+  });
+}
+
+// ── TAB ──────────────────────────────────────────────────────────────────
+function setTab(tab) {
+  currentTab = tab;
+  ['total','tiger','t212'].forEach(id => {
+    el(`tab-${id}`).classList.toggle('active', id === tab);
+  });
+  render();
+}
+
+// ── FETCH PRICES ─────────────────────────────────────────────────────────
+async function fetchPrices(auto = false) {
+  const overlay = el('loading-overlay');
+  const icon    = el('refresh-icon');
+  const lbl     = el('refresh-label');
+
+  if (auto) { overlay.classList.remove('hidden'); }
+  icon.className = 'spin'; lbl.textContent = 'Updating…';
+
+  const tickers = TIGER.map(h => h.t);
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{
+          role: 'user',
+          content: `Return ONLY a valid JSON object with no markdown, no explanation, no backticks. Latest stock prices in USD for: ${tickers.join(',')}. Format exactly: {"TICKER": price_number}`
+        }]
+      })
+    });
+    const data = await resp.json();
+    const txt  = data.content?.find(b => b.type === 'text')?.text ?? '';
+    const m    = txt.match(/\{[\s\S]*?\}/);
+    if (m) {
+      const parsed = JSON.parse(m[0]);
+      prices = { ...SNAP, ...parsed };
+      const now = new Date();
+      el('updated-label').textContent = `Updated ${now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}`;
+    }
+  } catch(e) {
+    el('updated-label').textContent = 'Price fetch failed — showing snapshot';
+  } finally {
+    icon.className = ''; icon.textContent = '↻';
+    lbl.textContent = 'Refresh';
+    overlay.classList.add('hidden');
+    render();
+  }
+}
+
+const el = id => document.getElementById(id);
+
+// ── INIT ─────────────────────────────────────────────────────────────────
+render(); // show snapshot immediately
+fetchPrices(true); // then fetch live on load
+</script>
+</body>
+</html>
